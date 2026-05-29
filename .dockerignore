@@ -1,0 +1,9 @@
+.git
+.gitignore
+**/.cursor
+**/node_modules
+frontend/dist
+backend/Rplots.pdf
+backend/test_*.png
+**/*.pdf
+agent-transcripts

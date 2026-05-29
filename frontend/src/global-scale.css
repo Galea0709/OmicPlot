@@ -1,0 +1,11 @@
+/* 主内容 90% 缩放；顶栏 .site-nav 在 .page-main 外，保持全宽 */
+.page-main {
+  zoom: 0.9;
+}
+
+/* Element Plus 弹层挂到 body，与主内容同比例 */
+body .el-dialog.platform-dialog,
+body .el-popper.bubble-breaks-help-popper,
+body .el-popper.grid-style-popover {
+  zoom: 0.9;
+}

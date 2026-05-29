@@ -1,0 +1,25 @@
+# 依赖与构建产物（体积大，不要提交）
+frontend/node_modules/
+frontend/dist/
+
+# R / 本地测试输出
+backend/Rplots.pdf
+backend/test_*.png
+backend/*.pdf
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+.cursor/
+
+# 日志
+*.log
+nohup.out
+
+# 环境变量（若有密钥勿提交）
+.env
+.env.*
