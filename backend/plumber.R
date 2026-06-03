@@ -646,6 +646,8 @@ function(
     file,
     genome = "mmu",
     enrichment_type = "KEGG",
+    pvalue_cutoff = "0.05",
+    qvalue_cutoff = "0.05",
     top_pathways = "20",
     arrange_standard = "pvalue",
     x_axis = "GeneRatio",
@@ -740,6 +742,8 @@ function(
     plot_type = plot_form_scalar(body_args, "plot_type", plot_type, "bubble"),
     genome = plot_form_scalar(body_args, "genome", genome, "mmu"),
     enrichment_type = plot_form_scalar(body_args, "enrichment_type", enrichment_type, "KEGG"),
+    pvalue_cutoff = plot_form_scalar(body_args, "pvalue_cutoff", pvalue_cutoff, "0.05"),
+    qvalue_cutoff = plot_form_scalar(body_args, "qvalue_cutoff", qvalue_cutoff, "0.05"),
     top_pathways = plot_form_scalar(body_args, "top_pathways", top_pathways, "20"),
     arrange_standard = plot_form_scalar(body_args, "arrange_standard", arrange_standard, "pvalue"),
     x_axis = plot_form_scalar(body_args, "x_axis", x_axis, "GeneRatio"),
@@ -873,6 +877,16 @@ function(
   }
   genome <- plot_scalars$genome
   enrichment_type <- plot_scalars$enrichment_type
+  pvalue_cutoff <- plot_scalars$pvalue_cutoff
+  qvalue_cutoff <- plot_scalars$qvalue_cutoff
+  message(
+    sprintf(
+      "[/api/plot] enrichment cutoffs: pvalue=%s qvalue=%s type=%s",
+      pvalue_cutoff,
+      qvalue_cutoff,
+      enrichment_type
+    )
+  )
   top_pathways <- plot_scalars$top_pathways
   arrange_standard <- plot_scalars$arrange_standard
   x_axis <- plot_scalars$x_axis
@@ -1020,6 +1034,8 @@ function(
           original_filename = if (nzchar(orig_name)) orig_name else NULL,
           genome = genome,
           enrichment_type = enrichment_type,
+          pvalue_cutoff = pvalue_cutoff,
+          qvalue_cutoff = qvalue_cutoff,
           top_pathways = as.integer(top_pathways),
           arrange_standard = arrange_standard,
           x_axis = x_axis,
@@ -1066,6 +1082,8 @@ function(
           original_filename = if (nzchar(orig_name)) orig_name else NULL,
           genome = genome,
           enrichment_type = enrichment_type,
+          pvalue_cutoff = pvalue_cutoff,
+          qvalue_cutoff = qvalue_cutoff,
           top_pathways = as.integer(top_pathways),
           arrange_standard = arrange_standard,
           x_axis = x_axis,

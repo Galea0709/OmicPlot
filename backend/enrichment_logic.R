@@ -148,7 +148,67 @@ map_genes <- function(genes, genome, max_unmapped = 0.20) {
   gene_entrez
 }
 
-run_enrichment <- function(entrez_ids, enrichment_type, genome) {
+#' clusterProfiler 富集 p/q 阈值，限制在 (0, 1]
+normalize_enrichment_cutoff <- function(x, default = 0.05) {
+  v <- suppressWarnings(as.numeric(x))
+  if (length(v) < 1L || !is.finite(v[[1L]])) {
+    return(as.numeric(default))
+  }
+  max(1e-10, min(1, v[[1L]]))
+}
+
+#' 按前端传入的 p/q 阈值过滤富集表（与 clusterProfiler 内部规则对齐并保证作图/统计表一致）
+#' - pvalue 阈值：pvalue 与 p.adjust 均须 <= 阈值（与 enrichGO 文档一致）
+#' - qvalue 阈值：qvalue <= 阈值；若 qvalue 为 NA 则用 p.adjust <= qvalue 阈值
+filter_enrichment_df_by_cutoffs <- function(df, pvalue_cutoff, qvalue_cutoff) {
+  if (is.null(df) || !is.data.frame(df) || nrow(df) == 0L) {
+    return(df)
+  }
+  pc <- normalize_enrichment_cutoff(pvalue_cutoff, 0.05)
+  qc <- normalize_enrichment_cutoff(qvalue_cutoff, 0.05)
+  n_before <- nrow(df)
+  keep <- rep(TRUE, nrow(df))
+
+  if ("pvalue" %in% names(df)) {
+    pv <- suppressWarnings(as.numeric(df$pvalue))
+    keep <- keep & !is.na(pv) & pv <= pc
+  }
+  if ("p.adjust" %in% names(df)) {
+    pa <- suppressWarnings(as.numeric(df$p.adjust))
+    keep <- keep & !is.na(pa) & pa <= pc
+  }
+  if ("qvalue" %in% names(df)) {
+    qv <- suppressWarnings(as.numeric(df$qvalue))
+    pa <- if ("p.adjust" %in% names(df)) {
+      suppressWarnings(as.numeric(df$p.adjust))
+    } else {
+      rep(NA_real_, nrow(df))
+    }
+    q_pass <- !is.na(qv) & qv <= qc
+    na_q <- is.na(qv)
+    if (any(na_q)) {
+      q_pass[na_q] <- !is.na(pa[na_q]) & pa[na_q] <= qc
+    }
+    keep <- keep & q_pass
+  }
+
+  out <- df[keep, , drop = FALSE]
+  message(
+    sprintf(
+      "[enrichment] 阈值筛选 p<=%.4g & q<=%.4g（p.adjust 同步）：%d -> %d 条通路",
+      pc, qc, n_before, nrow(out)
+    )
+  )
+  out
+}
+
+run_enrichment <- function(
+    entrez_ids,
+    enrichment_type,
+    genome,
+    pvalue_cutoff = NULL,
+    qvalue_cutoff = NULL
+) {
   et <- toupper(trimws(enrichment_type))
   org_db <- get_org_db(genome)
   g <- trimws(tolower(as.character(genome)))
@@ -156,6 +216,12 @@ run_enrichment <- function(entrez_ids, enrichment_type, genome) {
     g <- g[[1L]]
   }
 
+  pc_default <- 0.05
+  qc_default <- 0.05
+  pc <- normalize_enrichment_cutoff(pvalue_cutoff, pc_default)
+  qc <- normalize_enrichment_cutoff(qvalue_cutoff, qc_default)
+
+  ## 先取全部分析结果，再按用户阈值显式筛选（避免仅依赖 CP 内部筛选与界面不一致）
   if (et == "KEGG") {
     options(timeout = max(getOption("timeout"), 99999))
     res <- enrichKEGG(
@@ -163,8 +229,8 @@ run_enrichment <- function(entrez_ids, enrichment_type, genome) {
       organism = g,
       pAdjustMethod = "BH",
       keyType = "kegg",
-      pvalueCutoff = 0.5,
-      qvalueCutoff = 0.5
+      pvalueCutoff = 1,
+      qvalueCutoff = 1
     )
   } else {
     ont <- if (et == "GO") "ALL" else et
@@ -178,14 +244,25 @@ run_enrichment <- function(entrez_ids, enrichment_type, genome) {
       keyType = "ENTREZID",
       ont = ont,
       pAdjustMethod = "BH",
-      pvalueCutoff = 0.05,
-      qvalueCutoff = 0.05
+      pvalueCutoff = 1,
+      qvalueCutoff = 1
     )
   }
-  if (is.null(res) || nrow(as.data.frame(res)) == 0) {
+  if (is.null(res)) {
     stop("富集结果为空，请尝试放宽阈值或检查基因列表")
   }
-  as.data.frame(res)
+  df <- as.data.frame(res)
+  if (nrow(df) == 0L) {
+    stop("富集结果为空，请尝试放宽阈值或检查基因列表")
+  }
+  df <- filter_enrichment_df_by_cutoffs(df, pc, qc)
+  if (nrow(df) == 0L) {
+    stop(sprintf(
+      "富集结果在 pvalue≤%.4g 且 qvalue≤%.4g 筛选后为空，请放宽阈值或检查基因列表",
+      pc, qc
+    ))
+  }
+  df
 }
 
 mixed_to_float <- function(x) {
@@ -799,6 +876,8 @@ enrichment_bubble_from_file <- function(
     original_filename = NULL,
     genome = "mmu",
     enrichment_type = "KEGG",
+    pvalue_cutoff = NULL,
+    qvalue_cutoff = NULL,
     top_pathways = 20L,
     arrange_standard = "pvalue",
     x_axis = "GeneRatio",
@@ -840,7 +919,13 @@ enrichment_bubble_from_file <- function(
   df <- read_input_data(file_path, original_filename = original_filename)
   df <- normalize_deg_df(df)
   ge <- map_genes(df$Gene, genome)
-  er <- run_enrichment(ge$ENTREZID, enrichment_type, genome)
+  er <- run_enrichment(
+    ge$ENTREZID,
+    enrichment_type,
+    genome,
+    pvalue_cutoff = pvalue_cutoff,
+    qvalue_cutoff = qvalue_cutoff
+  )
   core <- prepare_core(er)
   core <- add_neg_log(core, arrange_standard, top_pathways)
   if (nrow(core) == 0) stop("筛选后无通路可展示")
@@ -1220,6 +1305,8 @@ enrichment_bar_from_file <- function(
     original_filename = NULL,
     genome = "mmu",
     enrichment_type = "KEGG",
+    pvalue_cutoff = NULL,
+    qvalue_cutoff = NULL,
     top_pathways = 10L,
     arrange_standard = "qvalue",
     x_axis = "GeneRatio",
@@ -1261,7 +1348,13 @@ enrichment_bar_from_file <- function(
   df <- read_input_data(file_path, original_filename = original_filename)
   df <- normalize_deg_df(df)
   ge <- map_genes(df$Gene, genome)
-  er <- run_enrichment(ge$ENTREZID, enrichment_type, genome)
+  er <- run_enrichment(
+    ge$ENTREZID,
+    enrichment_type,
+    genome,
+    pvalue_cutoff = pvalue_cutoff,
+    qvalue_cutoff = qvalue_cutoff
+  )
   core <- prepare_core(er)
   core$geneID <- map_gene_id_text_to_symbols(core$geneID, ge)
   core <- add_neg_log(core, arrange_standard, top_pathways)

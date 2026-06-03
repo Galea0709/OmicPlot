@@ -332,6 +332,35 @@
               </el-select>
             </el-form-item>
 
+            <div class="param-cutoff-block">
+              <div class="param-cutoff-row">
+                <el-form-item :label="t.pvalueCutoff" class="param-cutoff-item">
+                  <el-input-number
+                    v-model="form.pvalue_cutoff"
+                    class="param-cutoff-input"
+                    size="small"
+                    :min="0.0001"
+                    :max="1"
+                    :step="0.001"
+                    :precision="4"
+                    controls-position="right"
+                  />
+                </el-form-item>
+                <el-form-item :label="t.qvalueCutoff" class="param-cutoff-item">
+                  <el-input-number
+                    v-model="form.qvalue_cutoff"
+                    class="param-cutoff-input"
+                    size="small"
+                    :min="0.0001"
+                    :max="1"
+                    :step="0.001"
+                    :precision="4"
+                    controls-position="right"
+                  />
+                </el-form-item>
+              </div>
+            </div>
+
           </div>
 
           <div class="param-form-section param-form-section--divider">
@@ -1680,9 +1709,15 @@ function plotDimsCmFromTopN(nPathways) {
 
 const _dimsInitial = plotDimsCmFromTopN(10);
 
+/** 与后端 clusterProfiler 默认一致 */
+function enrichmentCutoffDefaults() {
+  return { pvalue_cutoff: 0.05, qvalue_cutoff: 0.05 };
+}
+
 const form = reactive({
   genome: "mmu",
   enrichment_type: "KEGG",
+  ...enrichmentCutoffDefaults(),
   top_pathways: 10,
   arrange_standard: "pvalue",
   x_axis: "GeneRatio",
@@ -1742,6 +1777,7 @@ function buildBubbleFormDefaults(enrichmentType = "KEGG") {
   return {
     genome: "mmu",
     enrichment_type: enrichmentType,
+    ...enrichmentCutoffDefaults(),
     top_pathways: 10,
     arrange_standard: "pvalue",
     x_axis: "GeneRatio",
@@ -1805,6 +1841,7 @@ function buildBarFormDefaults(enrichmentType = "KEGG") {
   return {
     genome: "mmu",
     enrichment_type: enrichmentType,
+    ...enrichmentCutoffDefaults(),
     top_pathways: BAR_EXAMPLE_TOP_PATHWAYS,
     arrange_standard: "qvalue",
     x_axis: "GeneRatio",
@@ -2007,6 +2044,9 @@ const i18n = {
     paramGroupDisplay: "图表映射与排序",
     genome: "参考物种",
     enrichType: "富集类型",
+    pvalueCutoff: "pvalue 阈值",
+    qvalueCutoff: "qvalue 阈值",
+    enrichmentCutoffHint: "用于 clusterProfiler 富集筛选，范围 (0, 1]；默认 0.05。",
     topN: "展示通路数",
     topNPlaceholder: "选择 10 / 20 / 30 或输入 5–100",
     sigStandard: "显著性 / 颜色映射",
@@ -2196,6 +2236,8 @@ const i18n = {
     plotConfirmFile: "输入文件",
     plotConfirmGenome: "参考物种",
     plotConfirmEnrichment: "富集类型",
+    plotConfirmPvalueCutoff: "pvalue 阈值",
+    plotConfirmQvalueCutoff: "qvalue 阈值",
     plotConfirmTopN: "展示通路数",
     plotConfirmSigStd: "显著性标准",
     plotConfirmXAxis: "横坐标变量",
@@ -2258,6 +2300,9 @@ const i18n = {
     paramGroupDisplay: "Plot mapping & order",
     genome: "Species",
     enrichType: "Enrichment",
+    pvalueCutoff: "p-value cutoff",
+    qvalueCutoff: "q-value cutoff",
+    enrichmentCutoffHint: "clusterProfiler enrichment filter in (0, 1]; default 0.05.",
     topN: "Pathways to show",
     topNPlaceholder: "Pick 10 / 20 / 30 or type 5–100",
     sigStandard: "Significance for color",
@@ -2450,6 +2495,8 @@ const i18n = {
     plotConfirmFile: "Input file",
     plotConfirmGenome: "Species",
     plotConfirmEnrichment: "Enrichment type",
+    plotConfirmPvalueCutoff: "p-value cutoff",
+    plotConfirmQvalueCutoff: "q-value cutoff",
     plotConfirmTopN: "Top pathways",
     plotConfirmSigStd: "Significance standard",
     plotConfirmXAxis: "X-axis variable",
@@ -2704,6 +2751,8 @@ const CONFIRM_ROW_COMPARE_KEYS = {
   file: ["input_file"],
   genome: ["genome"],
   enrichment: ["enrichment_type"],
+  pvalueCutoff: ["pvalue_cutoff"],
+  qvalueCutoff: ["qvalue_cutoff"],
   topN: ["top_pathways"],
   sigStd: ["arrange_standard"],
   xAxis: ["x_axis"],
@@ -2764,6 +2813,8 @@ const CONFIRM_COLOR_API_KEYS = new Set([
 ]);
 
 const CONFIRM_NUMERIC_API_KEYS = new Set([
+  "pvalue_cutoff",
+  "qvalue_cutoff",
   "top_pathways",
   "grid_major_linewidth",
   "grid_minor_linewidth",
@@ -2836,6 +2887,8 @@ function snapshotToConfirmBag(s) {
     input_file: s.input_file ?? "",
     genome: s.genome ?? "",
     enrichment_type: s.enrichment_type ?? "",
+    pvalue_cutoff: String(s.pvalue_cutoff ?? ""),
+    qvalue_cutoff: String(s.qvalue_cutoff ?? ""),
     top_pathways: String(s.top_pathways ?? ""),
     arrange_standard: s.arrange_standard ?? "",
     x_axis: s.x_axis ?? "",
@@ -2910,6 +2963,8 @@ function buildPlotConfirmDisplayList(bag, opts) {
   );
   push("genome", row.plotConfirmGenome, nz(bag.genome));
   push("enrichment", row.plotConfirmEnrichment, nz(bag.enrichment_type));
+  push("pvalueCutoff", row.plotConfirmPvalueCutoff, nz(bag.pvalue_cutoff));
+  push("qvalueCutoff", row.plotConfirmQvalueCutoff, nz(bag.qvalue_cutoff));
   push("topN", row.plotConfirmTopN, nz(bag.top_pathways));
   push("sigStd", row.plotConfirmSigStd, nz(bag.arrange_standard));
   push("xAxis", row.plotConfirmXAxis, nz(bag.x_axis));
@@ -3531,11 +3586,20 @@ function getPlotParamsForConfirmCompare() {
 }
 
 /** 提交作图前：等待控件写回、同步 KEGG 页签，并规范化颜色写入表单 */
+function clampEnrichmentCutoff(value, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(1, Math.max(0.0001, n));
+}
+
 async function prepareFormForPlotRequest() {
   await nextTick();
   if (activeTab.value === "kegg") {
     form.enrichment_type = "KEGG";
   }
+  const cutDefaults = enrichmentCutoffDefaults();
+  form.pvalue_cutoff = clampEnrichmentCutoff(form.pvalue_cutoff, cutDefaults.pvalue_cutoff);
+  form.qvalue_cutoff = clampEnrichmentCutoff(form.qvalue_cutoff, cutDefaults.qvalue_cutoff);
   const lowDefault = isBarTool.value ? "#b6abbd" : "#487dad";
   const highDefault = isBarTool.value ? "#624c74" : "#bb9cc4";
   form.color_low = finalizePlotColor(form.color_low, lowDefault);
@@ -3553,6 +3617,8 @@ function buildPlotParamsApiObject(formModel = form) {
   return {
     genome: f.genome,
     enrichment_type: f.enrichment_type,
+    pvalue_cutoff: String(f.pvalue_cutoff),
+    qvalue_cutoff: String(f.qvalue_cutoff),
     top_pathways: String(f.top_pathways),
     arrange_standard: f.arrange_standard,
     x_axis: f.x_axis,
@@ -5384,6 +5450,73 @@ async function confirmPlotAction() {
 .col-left-fill .param-form > .param-form-section :deep(.el-select__placeholder) {
   font-size: 16px;
   line-height: 1.45;
+}
+
+/* 富集 p/q 阈值：紧凑数字框，不占满整行 */
+.param-cutoff-block {
+  margin-bottom: 18px;
+}
+
+.param-cutoff-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.param-cutoff-row .param-cutoff-item {
+  margin-bottom: 0;
+}
+
+.param-cutoff-row :deep(.el-form-item__label) {
+  font-size: 13px !important;
+  font-weight: 600;
+  margin-bottom: 4px !important;
+  line-height: 1.3;
+}
+
+.param-cutoff-row :deep(.el-form-item__content) {
+  line-height: 1;
+}
+
+.param-cutoff-row :deep(.el-input-number) {
+  width: 100%;
+  max-width: 7.75rem;
+}
+
+.col-left-fill .param-form .param-cutoff-row :deep(.el-input-number .el-input__wrapper) {
+  min-height: 30px;
+  height: 30px;
+  padding-top: 0;
+  padding-bottom: 0;
+  box-shadow: 0 0 0 1px rgba(91, 140, 122, 0.16) inset;
+}
+
+.param-cutoff-row :deep(.el-input-number .el-input__inner) {
+  font-size: 14px;
+  text-align: left;
+  padding-left: 8px;
+}
+
+.param-cutoff-row :deep(.el-input-number .el-input-number__decrease),
+.param-cutoff-row :deep(.el-input-number .el-input-number__increase) {
+  width: 20px;
+  font-size: 11px;
+  background: rgba(245, 250, 247, 0.98);
+  border-color: rgba(91, 140, 122, 0.12);
+  color: #4a7c62;
+}
+
+.param-cutoff-row :deep(.el-input-number .el-input-number__decrease:hover),
+.param-cutoff-row :deep(.el-input-number .el-input-number__increase:hover) {
+  color: #2d6b47;
+  background: rgba(91, 140, 122, 0.1);
+}
+
+.param-cutoff-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #6b7f74;
 }
 
 .col-left-fill .run-main {
